@@ -1,146 +1,78 @@
-// import { Image } from 'expo-image';
-// import { Platform, StyleSheet } from 'react-native';
-
-// import { HelloWave } from '@/components/HelloWave';
-// import ParallaxScrollView from '@/components/ParallaxScrollView';
-// import { ThemedText } from '@/components/ThemedText';
-// import { ThemedView } from '@/components/ThemedView';
-
-// export default function HomeScreen() {
-//   return (
-//     <ParallaxScrollView
-//       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-//       headerImage={
-//         <Image
-//           source={require('@/assets/images/partial-react-logo.png')}
-//           style={styles.reactLogo}
-//         />
-//       }>
-//       <ThemedView style={styles.titleContainer}>
-//         <ThemedText type="title">Welcome!</ThemedText>
-//         <HelloWave />
-//       </ThemedView>
-//       <ThemedView style={styles.stepContainer}>
-//         <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-//         <ThemedText>
-//           Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-//           Press{' '}
-//           <ThemedText type="defaultSemiBold">
-//             {Platform.select({
-//               ios: 'cmd + d',
-//               android: 'cmd + m',
-//               web: 'F12',
-//             })}
-//           </ThemedText>{' '}
-//           to open developer tools.
-//         </ThemedText>
-//       </ThemedView>
-//       <ThemedView style={styles.stepContainer}>
-//         <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-//         <ThemedText>
-//           {`Tap the Explore tab to learn more about what's included in this starter app.`}
-//         </ThemedText>
-//       </ThemedView>
-//       <ThemedView style={styles.stepContainer}>
-//         <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-//         <ThemedText>
-//           {`When you're ready, run `}
-//           <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-//           <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-//           <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-//           <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-//         </ThemedText>
-//       </ThemedView>
-//     </ParallaxScrollView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   titleContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     gap: 8,
-//   },
-//   stepContainer: {
-//     gap: 8,
-//     marginBottom: 8,
-//   },
-//   reactLogo: {
-//     height: 178,
-//     width: 290,
-//     bottom: 0,
-//     left: 0,
-//     position: 'absolute',
-//   },
-// });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, FlatList, Alert, StyleSheet } from "react-native";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { Alert, Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 
-const apiUrl = "https://localhost:7020/api/Aluno"; // Substitua com a URL da sua API
+// ======================
+// Interface do Aluno
+// ======================
+interface Aluno {
+  id: number;
+  nome: string;
+  email: string;
+  telefone: string;
+  escola: string;
+}
+
+const apiUrl = "https://localhost:7164/api/Aluno"; // ajuste se necessário
 
 export default function App() {
-  const [alunos, setAlunos] = useState([]);
+  // ======================
+  // Estados
+  // ======================
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [editId, setEditId] = useState(null);
+  const [escola, setEscola] = useState("");
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [alunos, setAlunos] = useState<Aluno[]>([]);
 
+  // ======================
   // Carregar alunos
+  // ======================
   const carregarAlunos = async () => {
     try {
-      const response = await axios.get(apiUrl);
+      const response = await axios.get<Aluno[]>(apiUrl);
       setAlunos(response.data);
     } catch (error) {
-      Alert.alert("Erro", "Erro ao carregar os alunos");
+      Alert.alert("Erro", "Não foi possível carregar os alunos");
     }
   };
 
-  // Adicionar ou editar aluno
-  const handleSubmit = async () => {
-    if (!nome || !email || !telefone) {
-      Alert.alert("Erro", "Preencha todos os campos!");
+  useEffect(() => {
+    carregarAlunos();
+  }, []);
+
+  // ======================
+  // Salvar aluno (add/editar)
+  // ======================
+  const handleSave = async () => {
+    if (!nome || !email || !telefone || !escola) {
+      Alert.alert("Atenção", "Preencha todos os campos!");
       return;
     }
 
     try {
-      if (editId) {
-        // Editar aluno
-        await axios.put(`${apiUrl}/${editId}`, { nome, email, telefone });
+      if (editandoId) {
+        // Atualizar
+        await axios.put(`${apiUrl}/${editandoId}`, { nome, email, telefone, escola });
         Alert.alert("Sucesso", "Aluno atualizado com sucesso!");
       } else {
-        // Adicionar aluno
-        await axios.post(apiUrl, { nome, email, telefone });
+        // Criar
+        await axios.post(apiUrl, { nome, email, telefone, escola });
         Alert.alert("Sucesso", "Aluno cadastrado com sucesso!");
       }
-      setNome("");
-      setEmail("");
-      setTelefone("");
-      setEditId(null);
+
+      limparCampos();
       carregarAlunos();
     } catch (error) {
-      Alert.alert("Erro", "Erro ao salvar os dados");
+      Alert.alert("Erro", "Erro ao salvar aluno");
     }
   };
 
-  // Excluir aluno
-  const handleDelete = async (id) => {
+  // ======================
+  // Deletar aluno
+  // ======================
+  const handleDelete = async (id: number) => {
     try {
       await axios.delete(`${apiUrl}/${id}`);
       Alert.alert("Sucesso", "Aluno excluído com sucesso!");
@@ -150,54 +82,53 @@ export default function App() {
     }
   };
 
+  // ======================
   // Editar aluno
-  const handleEdit = (aluno) => {
+  // ======================
+  const handleEdit = (aluno: Aluno) => {
     setNome(aluno.nome);
     setEmail(aluno.email);
     setTelefone(aluno.telefone);
-    setEditId(aluno.id);
+    setEscola(aluno.escola);
+    setEditandoId(aluno.id);
   };
 
-  // Carregar lista de alunos ao inicializar
-  useEffect(() => {
-    carregarAlunos();
-  }, []);
+  // ======================
+  // Limpar formulário
+  // ======================
+  const limparCampos = () => {
+    setNome("");
+    setEmail("");
+    setTelefone("");
+    setEscola("");
+    setEditandoId(null);
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Gerenciamento de Alunos</Text>
+      <Text style={styles.titulo}>Cadastro de Alunos</Text>
 
-      {/* Formulário de cadastro */}
-      <View style={styles.form}>
-        <TextInputstyle={styles.input}
-          placeholder="Nome"
-          value={nome}
-          onChangeText={setNome}
-        />
-        <TextInputstyle={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInputstyle={styles.input}
-          placeholder="Telefone"
-          value={telefone}
-          onChangeText={setTelefone}
-          keyboardType="numeric"
-        />
-        <Button title={editId ? "Atualizar Aluno" : "Cadastrar Aluno"} onPress={handleSubmit} />
-      </View>
+      {/* Formulário */}
+      <TextInput style={styles.input} placeholder="Nome" value={nome} onChangeText={setNome} />
+      <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} />
+      <TextInput style={styles.input} placeholder="Telefone" value={telefone} onChangeText={setTelefone} />
+      <TextInput style={styles.input} placeholder="Escola" value={escola} onChangeText={setEscola} />
+
+      <Button title={editandoId ? "Atualizar" : "Salvar"} onPress={handleSave} />
 
       {/* Lista de alunos */}
-      <FlatListdata={alunos}
-        keyExtractor={(item) => item.id}
+      <FlatList
+        data={alunos}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <View style={styles.alunoItem}>
-            <Text>{item.nome}</Text>
-            <Text>{item.email}</Text>
-            <Text>{item.telefone}</Text>
-            <Button title="Editar" onPress={() => handleEdit(item)} />
-            <Button title="Excluir" onPress={() => handleDelete(item.id)} />
+          <View style={styles.item}>
+            <Text style={styles.texto}>
+              {item.nome} - {item.email} - {item.telefone} - {item.escola}
+            </Text>
+            <View style={styles.botoes}>
+              <Button title="Editar" onPress={() => handleEdit(item)} />
+              <Button title="Excluir" color="red" onPress={() => handleDelete(item.id)} />
+            </View>
           </View>
         )}
       />
@@ -205,36 +136,59 @@ export default function App() {
   );
 }
 
+// ======================
+// Estilos
+// ======================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#f4f6f8",
+    backgroundColor: "#f9f9f9",
   },
-  header: {
-    fontSize: 24,
+  titulo: {
+    fontSize: 22,
     fontWeight: "bold",
+    marginBottom: 20,
     textAlign: "center",
-    marginBottom: 20,
-  },
-  form: {
-    marginBottom: 20,
   },
   input: {
-    height: 40,
-    borderColor: "#ccc",
     borderWidth: 1,
-    marginBottom: 10,
-    paddingLeft: 10,
-    borderRadius: 5,
-  },
-  alunoItem: {
-    backgroundColor: "#fff",
+    borderColor: "#ccc",
+    borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    borderRadius: 5,
+    backgroundColor: "#fff",
+  },
+  item: {
+    padding: 10,
+    borderBottomWidth: 1,
     borderColor: "#ddd",
-    borderWidth: 1,
+    marginBottom: 10,
+  },
+  texto: {
+    fontSize: 16,
+  },
+  botoes: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 5,
   },
 });
+
+
+
+
+// index.tsx  e organizado:
+
+// Tipagem do Aluno feita.
+
+// Estados (nome, email, telefone, escola, editandoId).
+
+// CRUD completo com Axios (GET, POST, PUT, DELETE).
+
+// Alertas de sucesso/erro.
+
+// Lista com FlatList para exibir e botões de editar/excluir.
+
+
 
